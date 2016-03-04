@@ -7,15 +7,17 @@ import Foundation
 private let magicHashString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 class WsProtocolManager: IOManager {
-
+    // abstract callback for the receipt of a message
     func onMessageReceived(socket: WebSocket, message: [UInt8]) {
         preconditionFailure("This method must be overridden")
     }
 
+    // abstract callback for the receipt of a new socket connection
     func onSocketConnected(socket: WebSocket) {
         preconditionFailure("This method must be overridden")
     }
 
+    // broadcast message to passed in sockets
     func broadcastMessage(message: [UInt8], sockets: [WebSocket]) {
         sockets.foreach {
             socket in
@@ -25,12 +27,11 @@ class WsProtocolManager: IOManager {
         }
     }
 
-    /**
-      * Handle the input and write to the output stream,
-      * returning data to the client.
-      *
-      * @param out output stream we are writing to
-      */
+    // Handle the input and write to the output stream,
+    // returning data to the client.
+    //
+    // -parameter out: output stream we are writing to
+    //
     private func completeHandshake(socket: Socket, socketKey: String?) {
         var out = ""
         // if successful, write the output following http 1.1 specs
@@ -52,12 +53,11 @@ class WsProtocolManager: IOManager {
         socket.write([UInt8](out.utf8))
     }
 
-    /**
-      * Read the input from the input stream.
-      *
-      * @param bufferedReader input stream
-      * @return hand-shook socket key
-      */
+    //
+    // Read the input from the input stream.
+    //
+    // -parameter input: input stream
+    // -return hand-shook socket key
     private func initiateHandshake(input: String) -> (String, WsMessage)? {
         var lines: [String] = input.componentsSeparatedByString("\n").map {
             $0.stringByTrimmingCharactersInSet(
@@ -112,7 +112,6 @@ class WsProtocolManager: IOManager {
             }
 
             line = lines.removeFirst()
-            log.v(line)
         }
 
         log.v("Headers: \(headers)")
@@ -162,17 +161,17 @@ class WsProtocolManager: IOManager {
     }
 
     private func shake(socket: Socket) -> WebSocket? {
-        let keyAndPayloadOpt = self.initiateHandshake(String(bytes: socket.read()!,
-                encoding: NSUTF8StringEncoding
-        )!
-        )
+        let keyAndPayloadOpt = self.initiateHandshake(
+                                   String(bytes: socket.read()!,
+                                          encoding: NSUTF8StringEncoding)!
+                               )
 
         if let keyAndPayload = keyAndPayloadOpt {
             self.completeHandshake(socket, socketKey: keyAndPayload.0)
             return WebSocket(socket: socket,
-                    token: keyAndPayload.0,
-                    message: keyAndPayload.1,
-                    messageReceivedListener: onMessageReceived)
+                             token: keyAndPayload.0,
+                             message: keyAndPayload.1,
+                             messageReceivedListener: onMessageReceived)
         } else {
             self.completeHandshake(socket, socketKey: nil)
             return nil

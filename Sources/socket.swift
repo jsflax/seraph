@@ -67,9 +67,9 @@ class Socket {
     func read() -> [UInt8]? {
         var buff: [UInt8] = [UInt8](count: 4096, repeatedValue: 0x0)
         let readLen = ytcpsocket_pull(socketfd,
-                data: &buff,
-                len: 4096,
-                timeout_sec: 10)
+                                      data: &buff,
+                                      len: 4096,
+                                      timeout_sec: 10)
         if readLen > 0 {
             return buff
         } else {
@@ -84,8 +84,8 @@ class Socket {
     func write(data: [UInt8]) -> Bool {
         var buff = data
         return ytcpsocket_send(socketfd,
-                data: &buff,
-                len: data.count) > 0
+                               data: &buff,
+                               len: data.count) > 0
     }
 
     func ytcpsocket_send(socketfd: Int32,
@@ -95,60 +95,59 @@ class Socket {
 
         while (len - byteswrite > 0) {
             let writelen = Foundation.write(socketfd,
-                    data,
-                    len - byteswrite)
+                                            data,
+                                            len - byteswrite)
             if (writelen < 0) {
                 return -1
             }
-
+            
             byteswrite += writelen;
         }
-
+        
         return byteswrite
     }
-
+    
     private func ytcpsocket_pull(socketfd: Int32,
                                  inout data: [UInt8],
                                  len: Int,
                                  timeout_sec: Int) -> Int {
+        // select the socket file descriptor with a timeout,
+        // essentially checking a pulse
         if (timeout_sec > 0) {
             var fdset = fd_set()
             var timeout = timeval()
             timeout.tv_usec = 0
             timeout.tv_sec = timeout_sec
-
+            
             fdZero(&fdset)
             fdSet(socketfd, set: &fdset)
-
+            
             let ret = select(socketfd + 1, &fdset, nil, nil, &timeout);
-
+            
             if (ret <= 0) {
-                log.d("TIMEOUT")
                 return -1
-            } else {
-                log.d("SELECT: \(ret)")
             }
         }
-
+        
         var total_read_bytes = 0
         var read_bytes = 0
 
-        log.d("READING")
+        // fill buffer with bytes from socket
         repeat {
             log.v("reading: total: \(total_read_bytes) read: \(read_bytes)")
-
-            log.d("PRE_RECV")
+            
             read_bytes = recv(socketfd, &data, len, MSG_DONTWAIT)
-            log.d("POST_RECV")
             total_read_bytes += read_bytes
         } while (read_bytes > 0)
 
+        // reset data var to a non-buffer array
         data = Array(data[0 ... total_read_bytes])
         return total_read_bytes
     }
-
+    
     func close() {
-        Foundation.close(socketfd)
+        // close this socket
+        Foundation.close(self.socketfd)
         isConnected = false
     }
 }
@@ -341,7 +340,11 @@ class ServerSocket: Socket {
     }
 
     func accept() -> Socket? {
+        // attempt to accept a new client socket
         let newsockFd = ytcpsocket_accept(socketfd)
+
+        // if successful, return the new client socket
+        // else nil
         if newsockFd > 0 {
             return Socket(socketfd: newsockFd, isConnected: true)
         } else {

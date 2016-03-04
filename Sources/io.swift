@@ -19,9 +19,10 @@ class IOManager {
 
     private func socketLoop(server: ServerSocket) {
         log.trace("Awaiting request")
-
+        // accept client socket. this is a blocking method
         let socketOpt = server.accept();
 
+        // if socket was accepted, run the IO loop 
         if let socket = socketOpt {
             async {
                 self.ioLoop(socket)
@@ -36,8 +37,11 @@ class IOManager {
 
     func loop() {
         self.isRunning = true;
+        // begin loop on new thread
         async {
+            // run until shutdown
             while (self.isRunning) {
+                // run socketloop
                 self.socketLoop(self.serverSocket)
             }
         }
